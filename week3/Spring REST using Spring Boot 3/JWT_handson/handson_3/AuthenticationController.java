@@ -1,42 +1,99 @@
-package com.sample.authservice.controller;
+package com.cognizant.jwt.controller;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.sample.authservice.model.AuthenticationResponse;
-import com.sample.authservice.util.JwtUtil;
+import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 
 @RestController
 public class AuthenticationController {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationController.class);
+
     @GetMapping("/authenticate")
-    public AuthenticationResponse authenticate(
-            @RequestHeader("Authorization") String authHeader) {
+    public Map<String, String> authenticate(@RequestHeader("Authorization") String authHeader) {
 
-        System.out.println("Authorization Header : " + authHeader);
+        LOGGER.info("START");
 
-        String base64Credentials = authHeader.substring("Basic ".length());
+        LOGGER.debug("Authorization Header : {}", authHeader);
 
-        byte[] decodedBytes = Base64.getDecoder().decode(base64Credentials);
+        // Get username from Authorization header
+        String user = getUser(authHeader);
 
-        String credentials = new String(decodedBytes, StandardCharsets.UTF_8);
+        LOGGER.debug("Authenticated User : {}", user);
 
-        System.out.println("Decoded Credentials : " + credentials);
+        // Generate JWT Token
+        String token = generateJwt(user);
 
-        String[] values = credentials.split(":");
+        Map<String, String> map = new HashMap<>();
+        map.put("token", token);
 
-        String username = values[0];
-        String password = values[1];
+        LOGGER.info("END");
 
-        System.out.println("Username : " + username);
-        System.out.println("Password : " + password);
+        return map;
+    }
 
-        String token = JwtUtil.generateToken(username);
+    /**
+     * Reads the Authorization header, decodes it and returns the username.
+     */
+    private String getUser(String authHeader) {
 
-        return new AuthenticationResponse(token);
+        LOGGER.debug("Reading Authorization Header");
+
+        // Remove "Basic "
+        String encodedCredentials = authHeader.substring(6);
+
+        LOGGER.debug("Encoded Credentials : {}", encodedCredentials);
+
+        // Decode Base64
+        byte[] decodedBytes = Base64.getDecoder().decode(encodedCredentials);
+
+        String decodedCredentials = new String(decodedBytes);
+
+        LOGGER.debug("Decoded Credentials : {}", decodedCredentials);
+
+        // Extract username
+        String user = decodedCredentials.substring(0, decodedCredentials.indexOf(":"));
+
+        LOGGER.debug("User : {}", user);
+
+        return user;
+    }
+
+    /**
+     * Generates JWT Token.
+     */
+    private String generateJwt(String user) {
+
+        LOGGER.debug("Generating JWT for user : {}", user);
+
+        JwtBuilder builder = Jwts.builder();
+
+        builder.setSubject(user);
+
+        // Set current time
+        builder.setIssuedAt(new Date());
+
+        // Expire after 20 minutes
+        builder.setExpiration(new Date((new Date()).getTime() + 1200000));
+
+        // Sign with secret key
+        builder.signWith(SignatureAlgorithm.HS256, "secretkey");
+
+        String token = builder.compact();
+
+        LOGGER.debug("Generated Token : {}", token);
+
+        return token;
     }
 }

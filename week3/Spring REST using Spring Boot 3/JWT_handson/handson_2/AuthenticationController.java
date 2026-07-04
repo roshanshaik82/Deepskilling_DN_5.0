@@ -1,39 +1,57 @@
-package com.sample.authservice.controller;
+package com.cognizant.jwt.controller;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.sample.authservice.model.AuthenticationResponse;
-
 @RestController
 public class AuthenticationController {
 
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(AuthenticationController.class);
+
     @GetMapping("/authenticate")
-    public AuthenticationResponse authenticate(
+    public Map<String, String> authenticate(
             @RequestHeader("Authorization") String authHeader) {
 
-        System.out.println("Authorization Header : " + authHeader);
+        LOGGER.info("START");
 
-        String base64Credentials = authHeader.substring("Basic ".length());
+        String user = getUser(authHeader);
 
-        byte[] decodedBytes = Base64.getDecoder().decode(base64Credentials);
+        LOGGER.debug("Authenticated User : {}", user);
 
-        String credentials = new String(decodedBytes, StandardCharsets.UTF_8);
+        Map<String, String> map = new HashMap<>();
+        map.put("token", "");
 
-        System.out.println("Decoded Credentials : " + credentials);
+        LOGGER.info("END");
 
-        String[] values = credentials.split(":");
+        return map;
+    }
 
-        String username = values[0];
-        String password = values[1];
+    private String getUser(String authHeader) {
 
-        System.out.println("Username : " + username);
-        System.out.println("Password : " + password);
+        LOGGER.debug("Authorization Header : {}", authHeader);
 
-        return new AuthenticationResponse("Test Token");
+        String encodedCredentials = authHeader.substring(6);
+
+        LOGGER.debug("Encoded Credentials : {}", encodedCredentials);
+
+        byte[] decodedBytes = Base64.getDecoder().decode(encodedCredentials);
+
+        String decodedCredentials = new String(decodedBytes);
+
+        LOGGER.debug("Decoded Credentials : {}", decodedCredentials);
+
+        String user = decodedCredentials.substring(0, decodedCredentials.indexOf(":"));
+
+        LOGGER.debug("User : {}", user);
+
+        return user;
     }
 }
